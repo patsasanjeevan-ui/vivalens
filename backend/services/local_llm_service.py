@@ -22,6 +22,25 @@ PROFESSOR_SYSTEM_PROMPT = (
 )
 
 
+def _offline_professor_response(user_message: str, document_context: str) -> str:
+    """Keep the viva conversational when no remote or local model is available."""
+    normalized = user_message.lower().strip()
+    greetings = ("hello", "hi", "hey", "good morning", "good afternoon", "good evening")
+    setup_phrases = ("let us start", "let's start", "begin", "start the viva", "ready")
+
+    if any(phrase in normalized for phrase in greetings + setup_phrases):
+        opening = "Good. Let us begin. "
+    else:
+        opening = "Thank you for that response. "
+
+    if document_context:
+        context_line = "Based on the uploaded document, explain one central concept, method, or question in your own words."
+    else:
+        context_line = "Please upload your study document so I can ask a precise, document-grounded question."
+
+    return f"{opening}{context_line}"
+
+
 def _is_rate_limit_error(error: Exception) -> bool:
     message = str(error).lower()
     return any(value in message for value in ("429", "quota", "resourceexhausted", "rate limit"))
@@ -49,7 +68,7 @@ async def _query_ollama(history: list[dict[str, str]], user_message: str, docume
             return content.strip() or "Please continue."
     except Exception:
         logger.exception("Ollama fallback failed")
-        return "I cannot reach the examiner service right now. Please check the local model and try again."
+        return _offline_professor_response(user_message, document_context)
 
 
 async def _query_local_stt(audio_bytes: bytes, mime_type: str) -> str:
@@ -168,5 +187,5 @@ class VivaChatSession:
     async def get_response_from_audio(self, audio_bytes: bytes, mime_type: str = "audio/webm") -> tuple[str, str]:
         transcript = await self.transcribe_audio(audio_bytes, mime_type)
         if not transcript:
-            return "", "I could not hear a clear answer. Please check your microphone and try again."
+            return "", "I received your audio, but speech transcription is unavailable. Please use the browser transcript fallback or configure Gemini/LOCAL_STT_URL."
         return transcript, await self.get_response(transcript)
