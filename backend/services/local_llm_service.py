@@ -94,7 +94,7 @@ class VivaChatSession:
         self.context = ""
         self.history: list[dict[str, str]] = []
         self._chat: Any = None
-        self._gemini_model: Any = None
+        self._gemini_client: Any = None
         self._gemini_exhausted = False
         self._opening = "Good morning. Let us begin the viva examination."
 
@@ -102,7 +102,7 @@ class VivaChatSession:
         self.context = document_context
         self.history = []
         self._chat = None
-        self._gemini_model = None
+        self._gemini_client = None
         self._gemini_exhausted = False
         api_key = os.getenv("GEMINI_API_KEY", "")
         if not api_key or api_key.startswith("your_gemini"):
@@ -110,11 +110,16 @@ class VivaChatSession:
             self._gemini_exhausted = True
             return
         try:
-            import google.generativeai as genai
+            from google import genai
+            from google.genai import types
 
-            genai.configure(api_key=api_key)
-            self._gemini_model = genai.GenerativeModel(GEMINI_MODEL, system_instruction=PROFESSOR_SYSTEM_PROMPT)
-            self._chat = self._gemini_model.start_chat(history=[])
+            self._gemini_client = genai.Client(api_key=api_key)
+            self._chat = self._gemini_client.chats.create(
+                model=GEMINI_MODEL,
+                config=types.GenerateContentConfig(
+                    system_instruction=PROFESSOR_SYSTEM_PROMPT,
+                ),
+            )
             opening_prompt = f"Document context:\n{document_context}\n\nBegin with one rigorous opening question."
             self._opening = self._chat.send_message(opening_prompt).text or self._opening
             self.history.append({"role": "assistant", "content": self._opening})
@@ -122,7 +127,7 @@ class VivaChatSession:
         except Exception as error:
             logger.exception("Gemini session setup failed")
             self._chat = None
-            self._gemini_model = None
+            self._gemini_client = None
             self._gemini_exhausted = _is_rate_limit_error(error)
 
     def get_opening(self) -> str:
@@ -146,11 +151,20 @@ class VivaChatSession:
     async def transcribe_audio(self, audio_bytes: bytes, mime_type: str = "audio/webm") -> str:
         if not audio_bytes:
             return ""
-        if self._gemini_model is not None and not self._gemini_exhausted:
+        if self._gemini_client is not None and not self._gemini_exhausted:
             prompt = "Transcribe this student answer exactly. Return only the spoken words, without commentary."
             for attempt in range(MAX_RETRIES):
                 try:
-                    response = await asyncio.to_thread(self._gemini_model.generate_content, [prompt, {"mime_type": mime_type, "data": audio_bytes}])
+                    from google.genai import types
+
+                    response = await asyncio.to_thread(
+                        self._gemini_client.models.generate_content,
+                        model=GEMINI_MODEL,
+                        contents=[
+                            prompt,
+                            types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
+                        ],
+                    )
                     text = (response.text or "").strip()
                     logger.info("Gemini STT completed chars=%d", len(text))
                     return text

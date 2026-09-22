@@ -1,6 +1,8 @@
 import asyncio
 import os
 
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+
 async def process_image(image_bytes: bytes, mime_type: str = "image/jpeg") -> str:
     """Extract document context with Gemini, with a useful offline response."""
     api_key = os.getenv("GEMINI_API_KEY", "")
@@ -11,18 +13,22 @@ async def process_image(image_bytes: bytes, mime_type: str = "image/jpeg") -> st
         )
 
     try:
-        import google.generativeai as genai
+        from google import genai
+        from google.genai import types
 
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        client = genai.Client(api_key=api_key)
         prompt = (
             "Analyze this university exam document. Extract its topics, questions, "
             "definitions, formulas, and key concepts in a structured format for a strict "
             "oral viva examiner. Be factual and concise."
         )
         response = await asyncio.to_thread(
-            model.generate_content,
-            [prompt, {"mime_type": mime_type, "data": image_bytes}],
+            client.models.generate_content,
+            model=GEMINI_MODEL,
+            contents=[
+                prompt,
+                types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+            ],
         )
         return response.text or "No text could be extracted from this document."
     except Exception as exc:
