@@ -7,7 +7,7 @@ from typing import Any
 import httpx
 
 logger = logging.getLogger(__name__)
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 MAX_RETRIES = 4
 BASE_DELAY_SECONDS = 1.5
 MAX_DELAY_SECONDS = 20.0
