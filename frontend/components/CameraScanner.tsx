@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Check, RefreshCw, ScanLine, Upload, UserRound } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8005";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? (
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://localhost:8005"
+    : "https://vivalens.onrender.com"
+);
 type CameraScannerProps = { onScanComplete: (text: string) => void; onFaceDetected: (detected: boolean) => void };
 
 export function CameraScanner({ onScanComplete, onFaceDetected }: CameraScannerProps) {

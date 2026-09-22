@@ -7,7 +7,12 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { CameraScanner } from "../../components/CameraScanner";
 import { MicInterface } from "../../components/MicInterface";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8005";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? (
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://localhost:8005"
+    : "https://vivalens.onrender.com"
+);
 type Message = { id: string; sender: "student" | "examiner"; text: string };
 type AudioPayload = { base64: string; mimeType: string };
 type ServerEvent = { type: string; payload: string };
