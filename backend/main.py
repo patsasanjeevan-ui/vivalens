@@ -1,5 +1,6 @@
 import logging
 
+import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,7 +12,13 @@ logger = logging.getLogger(__name__)
 from api.routes import router as api_router
 from api.websocket import router as ws_router
 
-ALLOWED_ORIGINS = ["http://localhost:3005", "http://127.0.0.1:3005"]
+ALLOWED_ORIGINS = [
+    "http://localhost:3005",
+    "http://127.0.0.1:3005",
+]
+configured_frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+if configured_frontend_url and configured_frontend_url not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append(configured_frontend_url)
 
 app = FastAPI(title="VivaLens AI API", version="2.0.0", description="Backend for the VivaLens AI exam assistant PWA")
 app.add_middleware(
