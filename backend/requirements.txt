@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+websockets
+python-multipart
+PyPDF2
+python-dotenv
+google-generativeai
+requests
+httpx
